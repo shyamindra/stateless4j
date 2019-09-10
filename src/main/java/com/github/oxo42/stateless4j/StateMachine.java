@@ -6,8 +6,6 @@ import com.github.oxo42.stateless4j.delegates.Action3;
 import com.github.oxo42.stateless4j.delegates.Func;
 import com.github.oxo42.stateless4j.transitions.Transition;
 import com.github.oxo42.stateless4j.triggers.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,8 +22,9 @@ public class StateMachine<S, T> {
     protected final StateMachineConfig<S, T> config;
     protected final Func<S> stateAccessor;
     protected final Action1<S> stateMutator;
-    private final Logger logger = LoggerFactory.getLogger(getClass());
-    private boolean shouldLog = true;
+    private Logger logger = null;
+    private boolean shouldLog = false;
+    private boolean debug = false;
 
     protected Action3<S, T, Object[]> unhandledTriggerAction = new Action3<S, T, Object[]>() {
         @Override
@@ -114,6 +113,10 @@ public class StateMachine<S, T> {
     public boolean getShouldLog() {
         return shouldLog;
     }
+
+    public void setDebug(boolean enabled) {
+        debug = enabled;
+    }
     
     public void setShouldLog(boolean enabled) {
         shouldLog = enabled;
@@ -122,11 +125,7 @@ public class StateMachine<S, T> {
     public Logger getLogger() {
         return logger;
     }
-    
-    protected void log(T trigger, Object... args) {
-        getLogger().info("Firing " + trigger, args);
-    }
-    
+
     /**
      * The currently-permissible trigger values
      *
@@ -205,8 +204,9 @@ public class StateMachine<S, T> {
     }
     
     protected void publicFire(T trigger, Object... args) {
-        if (shouldLog) {
-            log(trigger, args);
+        if (shouldLog && logger != null) {
+            final String s = String.format("Firing %s", trigger);
+            logger.verbose(s);
         }
         TriggerWithParameters<T> configuration = config.getTriggerConfiguration(trigger);
         if (configuration != null) {
@@ -230,11 +230,12 @@ public class StateMachine<S, T> {
             triggerBehaviour.performAction(args);
             setState(destination);
             getCurrentRepresentation().enter(transition, args);
-            if (shouldLog && logger.isDebugEnabled()) {
-                getLogger().debug("Fired [{}]--{}-->[{}]",
+            if (shouldLog && debug && logger != null) {
+                String msg = String.format("Fired [%s]--%s-->[%s]",
                         source,
                         TriggerWithParameters.toString(trigger, args),
                         destination.toString());
+                logger.debug(msg);
             }
         }
     }
